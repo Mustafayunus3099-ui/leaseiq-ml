@@ -156,6 +156,13 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+leaseiq-env/
+
+# Datasets (downloaded/generated, not committed - too large for GitHub)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
 
 # Spyder project settings
 .spyderproject
