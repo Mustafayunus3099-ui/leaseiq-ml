@@ -158,6 +158,9 @@ env.bak/
 venv.bak/
 leaseiq-env/
 
+# Local AI assistant context (not committed)
+CLAUDE.md
+
 # Datasets (downloaded/generated, not committed - too large for GitHub)
 data/raw/*
 data/processed/*
