@@ -1,0 +1,25 @@
+{
+  "risk": {
+    "risk_label": "LOW",
+    "prob_low": 97.8,
+    "prob_medium": 2.2,
+    "prob_high": 0.1
+  },
+  "missing_high_risk": [],
+  "present_high_risk": [
+    "Cap On Liability",
+    "Governing Law",
+    "Anti-Assignment",
+    "Termination For Convenience",
+    "Notice Period To Terminate Renewal"
+  ],
+  "top_shap": {
+    "Cap On Liability": -1.9407,
+    "Anti-Assignment": -1.2244,
+    "Notice Period To Terminate Renewal": -1.0094,
+    "Termination For Convenience": -0.7997,
+    "Renewal Term": -0.1262
+  },
+  "clauses_detected": 41,
+  "clauses_total": 41
+}

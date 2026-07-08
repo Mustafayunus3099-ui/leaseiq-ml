@@ -167,6 +167,12 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
+# Fine-tuned model checkpoints (too large for GitHub — regenerate via notebook 03)
+models/legalbert-cuad/
+models/distilbert-cuad/
+# XGBoost pkl is small (~586KB) so we track it
+!models/xgb_risk_model.pkl
+
 # Spyder project settings
 .spyderproject
 .spyproject

@@ -1,0 +1,49 @@
+{
+  "_comment": "LeaseIQ Vapi Voice Assistant Configuration — paste this into the Vapi dashboard",
+  "name": "LeaseIQ Contract Analyzer",
+  "voice": {
+    "provider": "11labs",
+    "voiceId": "rachel"
+  },
+  "model": {
+    "provider": "anthropic",
+    "model": "claude-haiku-4-5-20251001",
+    "temperature": 0.3,
+    "systemPrompt": "You are LeaseIQ, an AI assistant that helps users understand the risk level of commercial leases and contracts. You speak clearly and concisely. When a user asks you to analyze a contract, call the analyze_contract function. Summarize the result in plain English — tell them the risk tier (LOW, MEDIUM, or HIGH), which critical clauses are missing, and what that means for them. Keep answers under 60 seconds of speech. Do not read out numbers or percentages unless the user asks."
+  },
+  "firstMessage": "Hello, I'm LeaseIQ. I can analyze a commercial lease or contract and tell you whether it's low, medium, or high risk. To get started, please paste the contract text, and I'll review it for you.",
+  "functions": [
+    {
+      "name": "analyze_contract",
+      "description": "Analyze a commercial contract or lease for risk. Extracts 41 types of legal clauses using LegalBERT and scores overall risk as LOW, MEDIUM, or HIGH using XGBoost.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "contract_text": {
+            "type": "string",
+            "description": "The full text of the commercial contract or lease to analyze."
+          }
+        },
+        "required": ["contract_text"]
+      },
+      "async": false
+    },
+    {
+      "name": "get_risk_details",
+      "description": "Get more information about a specific clause or risk factor found during contract analysis.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "clause_name": {
+            "type": "string",
+            "description": "The name of the clause to explain (e.g. 'Cap On Liability', 'Governing Law')."
+          }
+        },
+        "required": ["clause_name"]
+      },
+      "async": false
+    }
+  ],
+  "serverUrl": "http://localhost:8000/vapi/webhook",
+  "_note": "In production, replace serverUrl with your public ngrok or Render URL, e.g. https://leaseiq-api.onrender.com/vapi/webhook"
+}
