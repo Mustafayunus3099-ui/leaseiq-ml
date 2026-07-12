@@ -1,0 +1,19 @@
+# LeaseIQ API — production dependencies for HuggingFace Spaces deployment
+# Keep this lean: only what the FastAPI server needs at runtime
+
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+python-multipart==0.0.20
+slowapi==0.1.9
+pydantic==2.10.6
+pdfplumber==0.11.6
+
+# ML inference
+torch==2.6.0+cpu      ; sys_platform == "linux"
+torch==2.6.0          ; sys_platform == "darwin"
+transformers==4.51.3
+xgboost==2.1.4
+shap==0.47.2
+scikit-learn==1.6.1
+numpy==2.2.4
+pandas==2.2.3

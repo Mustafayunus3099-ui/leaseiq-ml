@@ -232,3 +232,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# frontend/ tracked — Next.js app for Vercel deployment
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
