@@ -1,0 +1,50 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.15)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="48" height="48" rx="12" fill="url(#bg)"/>
+  <!-- Subtle top shine -->
+  <rect width="48" height="24" rx="12" fill="url(#shine)"/>
+
+  <!-- Balance scale icon (stylized, clean) -->
+
+  <!-- Center vertical post -->
+  <rect x="23.25" y="9" width="1.5" height="24" rx="0.75" fill="white"/>
+
+  <!-- Horizontal beam -->
+  <rect x="9" y="15.5" width="30" height="1.5" rx="0.75" fill="white"/>
+
+  <!-- Left hanging chain line -->
+  <rect x="12.25" y="17" width="1.5" height="6" rx="0.75" fill="rgba(255,255,255,0.8)"/>
+  <!-- Left pan dish -->
+  <path d="M8.5 23 Q9 27.5 13 27.5 Q17 27.5 17.5 23 Z" fill="white" opacity="0.9"/>
+  <!-- Left pan rim -->
+  <rect x="8.5" y="22.5" width="9" height="1" rx="0.5" fill="white"/>
+
+  <!-- Right hanging chain line (slightly longer — imbalance = risk detected) -->
+  <rect x="34.25" y="17" width="1.5" height="8" rx="0.75" fill="rgba(255,255,255,0.7)"/>
+  <!-- Right pan dish (lower — high risk side) -->
+  <path d="M30.5 25 Q31 29.5 35 29.5 Q39 29.5 39.5 25 Z" fill="rgba(255,255,255,0.7)"/>
+  <!-- Right pan rim -->
+  <rect x="30.5" y="24.5" width="9" height="1" rx="0.5" fill="rgba(255,255,255,0.75)"/>
+
+  <!-- Fulcrum base -->
+  <rect x="18" y="33" width="12" height="1.5" rx="0.75" fill="rgba(255,255,255,0.7)"/>
+  <rect x="22" y="32" width="4" height="1.5" rx="0.75" fill="rgba(255,255,255,0.85)"/>
+
+  <!-- AI circuit dots at beam ends -->
+  <circle cx="9.75" cy="16.25" r="2.25" fill="white" opacity="0.9"/>
+  <circle cx="38.25" cy="16.25" r="2.25" fill="rgba(255,255,255,0.65)"/>
+
+  <!-- Center pivot dot -->
+  <circle cx="24" cy="16.25" r="2" fill="#a5b4fc"/>
+</svg>

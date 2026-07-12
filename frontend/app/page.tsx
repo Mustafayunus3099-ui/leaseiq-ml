@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import UploadZone     from "@/components/UploadZone";
-import RiskBanner     from "@/components/RiskBanner";
+import UploadZone      from "@/components/UploadZone";
+import RiskBanner      from "@/components/RiskBanner";
 import RiskExplanation from "@/components/RiskExplanation";
-import ClauseTable    from "@/components/ClauseTable";
+import ClauseTable     from "@/components/ClauseTable";
+import Logo            from "@/components/Logo";
 import type { AnalysisResult } from "@/lib/types";
 
 export default function Home() {
@@ -20,8 +21,8 @@ export default function Home() {
       {/* ── Nav ─────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 border-b border-zinc-900 bg-zinc-950/90 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <button onClick={reset} className="flex items-center gap-2 font-bold text-lg tracking-tight">
-            <span className="text-indigo-400">⚖</span> LeaseIQ
+          <button onClick={reset}>
+            <Logo size="sm" />
           </button>
           <div className="flex items-center gap-4 text-sm">
             <span className="text-zinc-600 hidden sm:block">AI-Powered Contract Risk Analysis</span>
@@ -45,6 +46,9 @@ export default function Home() {
 
             {/* Hero */}
             <div className="text-center space-y-4">
+              <div className="flex justify-center mb-2">
+                <Logo size="lg" showWordmark={false} />
+              </div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/25 text-indigo-400 text-xs font-semibold">
                 Powered by LegalBERT · Fine-tuned on 510 real contracts
               </div>
