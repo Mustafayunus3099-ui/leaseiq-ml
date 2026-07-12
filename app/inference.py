@@ -9,6 +9,7 @@ Pipeline:
       → SHAP explanation (which clauses drive the score)
 """
 
+import os
 import pickle
 from functools import lru_cache
 from pathlib import Path
@@ -21,6 +22,11 @@ ROOT = Path(__file__).resolve().parent.parent
 MODEL_DIR_LB = ROOT / "models" / "legalbert-cuad"
 MODEL_DIR_DB = ROOT / "models" / "distilbert-cuad"
 XGB_PATH     = ROOT / "models" / "xgb_risk_model.pkl"
+
+# In production (HuggingFace Spaces) these env vars point to Hub repo IDs.
+# Locally they fall back to the fine-tuned checkpoint directories.
+_HF_MODEL_LB = os.getenv("HF_MODEL_LB", str(MODEL_DIR_LB) if MODEL_DIR_LB.exists() else "nlpaueb/legal-bert-base-uncased")
+_HF_MODEL_DB = os.getenv("HF_MODEL_DB", str(MODEL_DIR_DB) if MODEL_DIR_DB.exists() else "distilbert-base-uncased")
 
 # All 41 CUAD clause categories in a fixed order so the feature vector
 # lines up correctly with what XGBoost was trained on.
@@ -57,8 +63,8 @@ RISK_COLORS = {"LOW": "#55A868", "MEDIUM": "#F5A623", "HIGH": "#C44E52"}
 def load_qa_model():
     """Load LegalBERT once and cache it — model loading takes ~30s."""
     from transformers import AutoModelForQuestionAnswering, AutoTokenizer
-    tokenizer = AutoTokenizer.from_pretrained(str(MODEL_DIR_LB))
-    model     = AutoModelForQuestionAnswering.from_pretrained(str(MODEL_DIR_LB))
+    tokenizer = AutoTokenizer.from_pretrained(_HF_MODEL_LB)
+    model     = AutoModelForQuestionAnswering.from_pretrained(_HF_MODEL_LB)
     model.eval()
     return model, tokenizer
 
@@ -193,12 +199,12 @@ def shap_explanation(feature_vector: np.ndarray) -> dict:
     return dict(zip(CLAUSE_CATEGORIES, shap_high.tolist()))
 
 
-def analyze_contract(contract_text: str) -> dict:
+def analyze_contract(contract_text: str, confidence_threshold: float = 0.05) -> dict:
     """
     Full end-to-end pipeline: text → clauses → risk → SHAP.
     Returns a single dict the UI layer can render directly.
     """
-    clause_results = extract_clauses(contract_text)
+    clause_results = extract_clauses(contract_text, confidence_threshold)
     feature_vec    = build_feature_vector(clause_results)
     risk           = score_risk(feature_vec)
     shap_vals      = shap_explanation(feature_vec)
@@ -208,6 +214,7 @@ def analyze_contract(contract_text: str) -> dict:
 
     return {
         "risk":           risk,
+        "clauses":        clause_results,   # also exposed as "clause_results" for compat
         "clause_results": clause_results,
         "shap_values":    shap_vals,
         "missing_high":   missing_high,

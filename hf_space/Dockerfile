@@ -14,6 +14,9 @@ RUN pip install --no-cache-dir -r requirements_api.txt
 # Copy source
 COPY src/ ./src/
 COPY app/ ./app/
+# XGBoost model (~586KB) is tracked in git and bundled here.
+# LegalBERT weights are downloaded from HF Hub at first startup (set via HF_MODEL_LB env var).
+COPY models/xgb_risk_model.pkl ./models/xgb_risk_model.pkl
 
 # HuggingFace Spaces runs as non-root user 1000
 RUN mkdir -p /app/models && chown -R 1000:1000 /app
