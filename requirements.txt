@@ -148,6 +148,7 @@ xgboost==3.3.0
 xxhash==3.8.0
 yarl==1.24.2
 fastapi==0.139.0
+slowapi==0.1.9
 python-multipart==0.0.20
 streamlit==1.58.0
 uvicorn==0.34.3
