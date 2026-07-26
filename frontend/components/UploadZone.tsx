@@ -47,7 +47,7 @@ export default function UploadZone({ onResult, onError, onLoading, isLoading }: 
   return (
     <div className="w-full space-y-4">
       {/* Tab switcher */}
-      <div className="flex gap-1 bg-card border border-[#1e2220] p-1 rounded-xl w-fit mx-auto">
+      <div className="flex gap-1 bg-stone-100 border border-stone-200 p-1 rounded-xl w-fit mx-auto">
         {(["upload", "paste"] as const).map((t) => (
           <button
             key={t}
@@ -83,8 +83,8 @@ export default function UploadZone({ onResult, onError, onLoading, isLoading }: 
             onClick={() => fileRef.current?.click()}
             className={`relative flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed p-12 cursor-pointer transition-all duration-200 ${
               dragging
-                ? "border-gold bg-[rgba(192,154,71,0.06)]"
-                : "border-[#1e2220] hover:border-[#2e3834] hover:bg-card/50"
+                ? "border-amber-400 bg-amber-50/50"
+                : "border-stone-200 hover:border-stone-300 hover:bg-stone-50/50"
             }`}
           >
             <input
@@ -109,11 +109,11 @@ export default function UploadZone({ onResult, onError, onLoading, isLoading }: 
                 xmlns="http://www.w3.org/2000/svg"
                 aria-hidden="true"
               >
-                <rect x="6" y="2" width="24" height="32" rx="2" stroke={dragging ? "#C09A47" : "#2e3834"} strokeWidth="1.5" />
-                <path d="M24 2v8h8" stroke={dragging ? "#C09A47" : "#2e3834"} strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="11" y1="17" x2="29" y2="17" stroke={dragging ? "#C09A47" : "#3a4540"} strokeWidth="1.2" strokeLinecap="round" />
-                <line x1="11" y1="22" x2="29" y2="22" stroke={dragging ? "#C09A47" : "#3a4540"} strokeWidth="1.2" strokeLinecap="round" />
-                <line x1="11" y1="27" x2="22" y2="27" stroke={dragging ? "#C09A47" : "#3a4540"} strokeWidth="1.2" strokeLinecap="round" />
+                <rect x="6" y="2" width="24" height="32" rx="2" stroke={dragging ? "#D97706" : "#CBD5E1"} strokeWidth="1.5" />
+                <path d="M24 2v8h8" stroke={dragging ? "#D97706" : "#CBD5E1"} strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="11" y1="17" x2="29" y2="17" stroke={dragging ? "#D97706" : "#E2E8F0"} strokeWidth="1.2" strokeLinecap="round" />
+                <line x1="11" y1="22" x2="29" y2="22" stroke={dragging ? "#D97706" : "#E2E8F0"} strokeWidth="1.2" strokeLinecap="round" />
+                <line x1="11" y1="27" x2="22" y2="27" stroke={dragging ? "#D97706" : "#E2E8F0"} strokeWidth="1.2" strokeLinecap="round" />
               </svg>
             </motion.div>
 
@@ -156,14 +156,14 @@ export default function UploadZone({ onResult, onError, onLoading, isLoading }: 
               onChange={(e) => setText(e.target.value)}
               placeholder="Paste your contract text here…"
               rows={10}
-              className="w-full rounded-2xl bg-card border border-[#1e2220] p-4 text-sm text-paper placeholder-muted outline-none focus:border-gold/50 resize-none font-code leading-relaxed transition-colors"
+              className="w-full rounded-2xl bg-white border border-stone-200 p-4 text-sm text-stone-800 placeholder:text-stone-400 outline-none focus:border-amber-400/50 focus:ring-2 focus:ring-amber-100 resize-none font-code leading-relaxed transition-colors"
             />
             <motion.button
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
               disabled={text.trim().length < 100}
               onClick={() => handle(undefined, text)}
-              className="w-full py-3 rounded-xl bg-gold hover:bg-[#D4AA57] disabled:bg-lift disabled:text-muted text-ink font-semibold transition-colors"
+              className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:bg-stone-100 disabled:text-stone-400 text-white font-semibold transition-colors"
             >
               Analyze contract
             </motion.button>
@@ -181,12 +181,12 @@ export default function UploadZone({ onResult, onError, onLoading, isLoading }: 
           >
             <div className="relative w-14 h-14">
               <motion.div
-                className="absolute inset-0 rounded-full border border-gold/15"
+                className="absolute inset-0 rounded-full border border-amber-200"
                 animate={{ rotate: 360 }}
                 transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
               />
               <motion.div
-                className="absolute inset-0 rounded-full border border-transparent border-t-gold/60"
+                className="absolute inset-0 rounded-full border border-transparent border-t-amber-500"
                 animate={{ rotate: 360 }}
                 transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
               />
@@ -203,10 +203,10 @@ export default function UploadZone({ onResult, onError, onLoading, isLoading }: 
               </div>
             </div>
             <div className="text-center space-y-1">
-              <p className="text-sm text-paper font-medium">LegalBERT is reading your contract…</p>
-              <p className="text-xs text-muted">This can take up to 60 seconds</p>
+              <p className="text-sm text-stone-700 font-medium">LegalBERT is reading your contract…</p>
+              <p className="text-xs text-stone-400">This can take up to 60 seconds</p>
             </div>
-            <div className="w-48 h-px rounded-full overflow-hidden bg-lift">
+            <div className="w-48 h-px rounded-full overflow-hidden bg-stone-100">
               <div className="shimmer h-full w-full rounded-full" />
             </div>
           </motion.div>
@@ -221,15 +221,15 @@ export default function UploadZone({ onResult, onError, onLoading, isLoading }: 
           transition={{ delay: 0.4 }}
         >
           <div className="flex items-center gap-3 my-1">
-            <div className="flex-1 h-px bg-[#1e2220]" />
-            <span className="text-xs text-muted">or</span>
-            <div className="flex-1 h-px bg-[#1e2220]" />
+            <div className="flex-1 h-px bg-stone-200" />
+            <span className="text-xs text-stone-400">or</span>
+            <div className="flex-1 h-px bg-stone-200" />
           </div>
           <motion.button
-            whileHover={{ scale: 1.01, borderColor: "rgba(192,154,71,0.35)" }}
+            whileHover={{ scale: 1.01, borderColor: "#D97706" }}
             whileTap={{ scale: 0.98 }}
             onClick={() => onResult(DEMO_RESULT)}
-            className="w-full py-2.5 rounded-xl border border-[#1e2220] text-muted hover:text-paper text-sm transition-all"
+            className="w-full py-2.5 rounded-xl border border-stone-200 text-stone-500 hover:text-stone-800 hover:border-amber-300 text-sm transition-all"
           >
             Try a demo contract
           </motion.button>

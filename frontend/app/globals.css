@@ -1,28 +1,28 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink:   #0C0F0E;
-  --color-card:  #131615;
-  --color-lift:  #1A1E1B;
-  --color-paper: #EAE5D8;
-  --color-muted: #5A6060;
+  --color-ink:   #FAF9F6;
+  --color-card:  #FFFFFF;
+  --color-lift:  #F5F2EA;
+  --color-paper: #1C1714;
+  --color-muted: #78716C;
   --color-gold:  #C09A47;
-  --color-seal:  #2D7A4F;
-  --color-stamp: #B83232;
-  --color-warn:  #C47820;
+  --color-seal:  #166534;
+  --color-stamp: #B91C1C;
+  --color-warn:  #B45309;
 
   --font-display: var(--font-dm-serif);
   --font-code: var(--font-ibm-mono);
 }
 
 :root {
-  --gold-faint:  rgba(192, 154, 71, 0.08);
-  --border-dim:  #1E2220;
+  --gold-faint:  rgba(192, 154, 71, 0.10);
+  --border-dim:  #E5E0D3;
 }
 
 body {
-  background: #0C0F0E;
-  color: #EAE5D8;
+  background: #FAF9F6;
+  color: #1C1714;
   font-family: var(--font-ibm-mono), "Courier New", monospace;
 }
 
@@ -40,13 +40,13 @@ body {
 }
 
 /* ── Risk glows ─────────────────────────────────────────────────────────────── */
-.glow-high   { box-shadow: 0 0 60px -10px rgba(184, 50, 50, 0.35); }
-.glow-medium { box-shadow: 0 0 60px -10px rgba(196, 120, 32, 0.28); }
-.glow-low    { box-shadow: 0 0 60px -10px rgba(45, 122, 79, 0.28); }
+.glow-high   { box-shadow: 0 0 60px -10px rgba(185, 28, 28, 0.20); }
+.glow-medium { box-shadow: 0 0 60px -10px rgba(180, 83, 9, 0.18); }
+.glow-low    { box-shadow: 0 0 60px -10px rgba(22, 101, 52, 0.18); }
 
 /* ── Contract viewer clause highlights ─────────────────────────────────────── */
-.highlight-present  { background: rgba(192, 154, 71, 0.15); border-radius: 2px; padding: 0 2px; }
-.highlight-critical { background: rgba(184, 50, 50, 0.18);  border-radius: 2px; padding: 0 2px; }
+.highlight-present  { background: rgba(192, 154, 71, 0.18); border-radius: 2px; padding: 0 2px; }
+.highlight-critical { background: rgba(185, 28, 28, 0.12);  border-radius: 2px; padding: 0 2px; }
 
 /* ── Badge pulse for HIGH risk ──────────────────────────────────────────────── */
 @keyframes pulse-ring {
@@ -56,35 +56,40 @@ body {
 }
 .pulse-high { animation: pulse-ring 2s cubic-bezier(0.4,0,0.6,1) infinite; }
 
-/* ── Upload drag-over ───────────────────────────────────────────────────────── */
-.drag-over {
-  border-color: #C09A47 !important;
-  background: rgba(192, 154, 71, 0.06) !important;
-}
-
-/* ── Ruled paper background ─────────────────────────────────────────────────── */
-.bg-ruled {
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 27px,
-    rgba(192, 154, 71, 0.032) 27px,
-    rgba(192, 154, 71, 0.032) 28px
-  );
-}
-
 /* ── Shimmer loading skeleton ───────────────────────────────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -400px 0; }
   100% { background-position:  400px 0; }
 }
 .shimmer {
-  background: linear-gradient(90deg, #1A1E1B 25%, #252B28 50%, #1A1E1B 75%);
+  background: linear-gradient(90deg, #F5F2EA 25%, #EDE8DC 50%, #F5F2EA 75%);
   background-size: 800px 100%;
   animation: shimmer 1.6s infinite linear;
 }
 
+/* ── Scroll-reveal animation ────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Floating card animation ────────────────────────────────────────────────── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+.float { animation: float 4s ease-in-out infinite; }
+
+/* ── Gradient orb blobs ─────────────────────────────────────────────────────── */
+.orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  pointer-events: none;
+}
+
 /* ── Scrollbar ──────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: #0C0F0E; }
-::-webkit-scrollbar-thumb { background: #2A2E2C; border-radius: 3px; }
+::-webkit-scrollbar-track { background: #FAF9F6; }
+::-webkit-scrollbar-thumb { background: #D4CFC6; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #B8B2A8; }

@@ -25,7 +25,7 @@ export default function RiskBanner({ label, probLow, probMedium, probHigh, missi
       initial={{ opacity: 0, y: 32, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: "spring", stiffness: 80, damping: 18 }}
-      className="w-full rounded-2xl border border-[#1e2220] bg-card p-8"
+      className="w-full rounded-2xl border border-stone-200 bg-white p-8 shadow-sm"
       style={{ boxShadow: s.glow }}
     >
       <div className="flex flex-col sm:flex-row sm:items-center gap-8">
@@ -75,7 +75,7 @@ export default function RiskBanner({ label, probLow, probMedium, probHigh, missi
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
           transition={{ delay: 0.7, duration: 0.4, ease: "easeOut" }}
-          className="mt-6 pt-6 border-t border-[#1e2220] overflow-hidden"
+          className="mt-6 pt-6 border-t border-stone-100 overflow-hidden"
         >
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-stamp mb-3">
             {missingCritical.length} critical clause{missingCritical.length > 1 ? "s" : ""} not found
@@ -107,7 +107,7 @@ function ProbBar({
   return (
     <div className="flex items-center gap-3">
       <span className="text-xs text-muted w-14 shrink-0 tracking-wide">{label}</span>
-      <div className="flex-1 h-1 bg-lift rounded-full overflow-hidden">
+      <div className="flex-1 h-1 bg-stone-100 rounded-full overflow-hidden">
         <motion.div
           className="h-full rounded-full"
           style={{ background: color }}
