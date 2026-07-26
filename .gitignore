@@ -20,6 +20,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+# Un-ignore frontend/lib — it's the Next.js utility directory, not a Python lib
+!frontend/lib/
 parts/
 sdist/
 var/
