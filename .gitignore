@@ -1,3 +1,7 @@
+# macOS metadata
+.DS_Store
+**/.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -160,6 +164,7 @@ leaseiq-env/
 
 # Local AI assistant context (not committed)
 CLAUDE.md
+.claude/
 
 # Datasets (downloaded/generated, not committed - too large for GitHub)
 data/raw/*

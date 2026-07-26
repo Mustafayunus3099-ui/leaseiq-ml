@@ -1,25 +1,18 @@
 """
-LeaseIQ — FastAPI Backend
+LeaseIQ FastAPI backend.
 
 Endpoints:
-  POST /analyze          — full contract analysis (JSON body)
-  POST /analyze-file     — upload PDF or TXT file
-  POST /vapi/webhook     — Vapi voice-agent function call handler
-  GET  /health           — health check
-
-Security hardening:
-  - CORS restricted to allowed origins (set ALLOWED_ORIGINS env var, comma-separated)
-  - Rate limiting via slowapi (10 req/min per IP on /analyze and /analyze-file)
-  - Request body size capped at 5MB
-  - File upload type validation (PDF / TXT only)
-  - Input sanitization (null bytes, control chars stripped)
-  - No secrets in code (loaded from environment)
+  POST /analyze        - full contract analysis (JSON body)
+  POST /analyze-file   - upload PDF or TXT
+  POST /vapi/webhook   - Vapi voice agent function call handler
+  GET  /health         - health check
 
 Run locally:
-    source leaseiq-env/bin/activate
-    uvicorn app.api:app --reload --port 8000
+  source leaseiq-env/bin/activate
+  uvicorn app.api:app --reload --port 8000
 """
 
+import hmac
 import os
 import re
 import sys
@@ -38,23 +31,24 @@ from pydantic import BaseModel, field_validator
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from inference import analyze_contract
 
-# ── App setup ─────────────────────────────────────────────────────────────
 
+# Rate limiter
 limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
 
 app = FastAPI(
     title="LeaseIQ API",
     description="Commercial lease clause extraction and risk scoring.",
     version="2.0.0",
-    # Disable docs in production via env var
     docs_url=None if os.getenv("DISABLE_DOCS") else "/docs",
     redoc_url=None,
 )
 
 app.state.limiter = limiter
+
 
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
@@ -63,7 +57,21 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
         content={"detail": "Too many requests. Please wait a minute and try again."},
     )
 
-# CORS — restrict to Vercel frontend and localhost in dev
+
+# Security headers on every response
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+
+# CORS — only allow known origins; configure via ALLOWED_ORIGINS env var
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8501")
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
@@ -72,22 +80,47 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,
     allow_methods=["POST", "GET"],
     allow_headers=["Content-Type", "Authorization"],
+    allow_credentials=False,
     max_age=600,
 )
 
 
-# ── Input sanitization ────────────────────────────────────────────────────
+# Input validation constants
+MAX_TEXT_LEN  = 200_000   # ~150k words, covers the longest CUAD contracts
+MAX_FILE_BYTES = 5 * 1024 * 1024  # 5 MB
+ALLOWED_MIME   = {"application/pdf", "text/plain"}
 
-MAX_TEXT_LEN = 200_000  # ~150k words, covers the longest CUAD contracts
 
 def sanitize(text: str) -> str:
-    """Strip null bytes and non-printable control chars; normalize unicode."""
+    """Normalize unicode and strip null bytes / non-printable control chars."""
     text = unicodedata.normalize("NFKC", text)
     text = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", "", text)
     return text.strip()
 
 
-# ── /analyze (JSON body) ──────────────────────────────────────────────────
+def _build_response(result: dict, original_text: str) -> dict:
+    """Shape the inference result dict into the API response format."""
+    risk = result["risk"]
+    shap_sorted = dict(
+        sorted(result["shap_values"].items(), key=lambda kv: abs(kv[1]), reverse=True)[:10]
+    )
+    return {
+        "risk_label":        risk["risk_label"],
+        "prob_low":          risk["prob_low"],
+        "prob_medium":       risk["prob_medium"],
+        "prob_high":         risk["prob_high"],
+        "missing_high_risk": result["missing_high"],
+        "present_high_risk": result["present_high"],
+        "top_risk_drivers":  shap_sorted,
+        "clauses": {
+            k: {"present": v["present"], "excerpt": v.get("answer", ""), "score": v["score"]}
+            for k, v in result.get("clauses", {}).items()
+        },
+        "contract_excerpt": original_text[:3000],
+    }
+
+
+# /analyze — JSON body
 
 class AnalyzeRequest(BaseModel):
     contract_text: str
@@ -114,45 +147,24 @@ class AnalyzeRequest(BaseModel):
 @app.post("/analyze")
 @limiter.limit("10/minute")
 async def analyze(req: Request, body: AnalyzeRequest):
-    """Run clause extraction + risk scoring on contract text."""
     result = analyze_contract(body.contract_text, body.confidence_threshold or 0.05)
-    risk   = result["risk"]
-
-    shap_sorted = dict(
-        sorted(result["shap_values"].items(), key=lambda kv: abs(kv[1]), reverse=True)[:10]
-    )
-
-    return {
-        "risk_label":        risk["risk_label"],
-        "prob_low":          risk["prob_low"],
-        "prob_medium":       risk["prob_medium"],
-        "prob_high":         risk["prob_high"],
-        "missing_high_risk": result["missing_high"],
-        "present_high_risk": result["present_high"],
-        "top_risk_drivers":  shap_sorted,
-        "clauses":           result.get("clauses", {}),
-    }
+    return _build_response(result, body.contract_text)
 
 
-# ── /analyze-file (PDF / TXT upload) ─────────────────────────────────────
-
-ALLOWED_TYPES = {"application/pdf", "text/plain"}
-MAX_FILE_BYTES = 5 * 1024 * 1024  # 5MB
+# /analyze-file — PDF or TXT upload
 
 @app.post("/analyze-file")
 @limiter.limit("10/minute")
 async def analyze_file(req: Request, file: UploadFile = File(...)):
-    """Accept a PDF or TXT upload and return the same response as /analyze."""
-    if file.content_type not in ALLOWED_TYPES:
+    if file.content_type not in ALLOWED_MIME:
         ext = (file.filename or "").rsplit(".", 1)[-1].lower()
         if ext not in ("pdf", "txt"):
             raise HTTPException(status_code=415, detail="Only PDF and plain-text files are supported.")
 
     raw = await file.read()
     if len(raw) > MAX_FILE_BYTES:
-        raise HTTPException(status_code=413, detail="File exceeds the 5MB limit.")
+        raise HTTPException(status_code=413, detail="File exceeds the 5 MB limit.")
 
-    # Extract text
     if file.content_type == "application/pdf" or (file.filename or "").endswith(".pdf"):
         try:
             import io
@@ -160,7 +172,7 @@ async def analyze_file(req: Request, file: UploadFile = File(...)):
             with pdfplumber.open(io.BytesIO(raw)) as pdf:
                 text = "\n".join(p.extract_text() or "" for p in pdf.pages)
         except Exception:
-            raise HTTPException(status_code=422, detail="Could not extract text from PDF. Try copying and pasting the text instead.")
+            raise HTTPException(status_code=422, detail="Could not extract text from PDF. Try pasting the text instead.")
     else:
         try:
             text = raw.decode("utf-8")
@@ -169,36 +181,31 @@ async def analyze_file(req: Request, file: UploadFile = File(...)):
 
     text = sanitize(text)
     if len(text) < 100:
-        raise HTTPException(status_code=422, detail="Extracted text is too short. The file may be scanned/image-only.")
+        raise HTTPException(status_code=422, detail="Extracted text is too short. The file may be scanned or image-only.")
 
     result = analyze_contract(text)
-    risk   = result["risk"]
-    shap_sorted = dict(
-        sorted(result["shap_values"].items(), key=lambda kv: abs(kv[1]), reverse=True)[:10]
-    )
-
-    return {
-        "risk_label":        risk["risk_label"],
-        "prob_low":          risk["prob_low"],
-        "prob_medium":       risk["prob_medium"],
-        "prob_high":         risk["prob_high"],
-        "missing_high_risk": result["missing_high"],
-        "present_high_risk": result["present_high"],
-        "top_risk_drivers":  shap_sorted,
-        "clauses":           result.get("clauses", {}),
-    }
+    return _build_response(result, text)
 
 
-# ── /vapi/webhook ─────────────────────────────────────────────────────────
+# /vapi/webhook — voice agent function call handler
+
+_VAPI_SECRET = os.getenv("VAPI_SECRET", "")
+
 
 class VapiMessage(BaseModel):
     type: str
     functionCall: Optional[dict] = None
     call: Optional[dict] = None
 
+
 @app.post("/vapi/webhook")
-async def vapi_webhook(payload: VapiMessage):
-    """Handle Vapi voice-agent function calls and return natural-language summaries."""
+async def vapi_webhook(request: Request, payload: VapiMessage):
+    # Timing-safe secret comparison to prevent timing attacks
+    if _VAPI_SECRET:
+        incoming = request.headers.get("x-vapi-secret", "")
+        if not hmac.compare_digest(incoming.encode(), _VAPI_SECRET.encode()):
+            raise HTTPException(status_code=401, detail="Invalid Vapi secret.")
+
     if payload.type != "function-call" or not payload.functionCall:
         return {"result": "No function call in payload."}
 
@@ -216,17 +223,11 @@ async def vapi_webhook(payload: VapiMessage):
         missing = result["missing_high"]
         present = result["present_high"]
 
-        if tier == "HIGH":
-            opening = "This contract is HIGH risk."
-        elif tier == "MEDIUM":
-            opening = "This contract is MEDIUM risk."
-        else:
-            opening = "This contract is LOW risk — it looks well-structured."
-
+        opening     = f"This contract is {tier} risk." + (" " if tier != "LOW" else " It looks well-structured. ")
         clause_msg  = f"Critical clauses missing: {', '.join(missing)}." if missing else "All critical clauses are present."
         present_msg = f"Protective clauses found: {', '.join(present)}." if present else ""
 
-        return {"result": f"{opening} {clause_msg} {present_msg}".strip()}
+        return {"result": f"{opening}{clause_msg} {present_msg}".strip()}
 
     if fn == "get_risk_details":
         clause = sanitize(args.get("clause_name", ""))
@@ -235,7 +236,7 @@ async def vapi_webhook(payload: VapiMessage):
     return {"result": f"Unknown function: {fn}"}
 
 
-# ── Health check ──────────────────────────────────────────────────────────
+# Health check
 
 @app.get("/health")
 async def health():

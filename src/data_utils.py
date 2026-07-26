@@ -80,8 +80,12 @@ def make_qa_examples(df, tokenizer, max_length=384, stride=128,
             chunk_char_start = offsets[ctx_start][0]
             chunk_char_end   = offsets[ctx_end][1]
 
-            if chunk_char_start > a_start or chunk_char_end < a_end:
-                continue  # answer not in this window, try next
+            # Skip windows that don't contain the answer start at all.
+            # We no longer require the full answer to fit — long clause spans
+            # are truncated at the window boundary (same strategy as SQuAD v2
+            # baselines). This prevents mass-skipping of answerable examples.
+            if chunk_char_start > a_start or chunk_char_end <= a_start:
+                continue
 
             # walk forward to find start token
             tok_s = ctx_start
@@ -89,11 +93,14 @@ def make_qa_examples(df, tokenizer, max_length=384, stride=128,
                 tok_s += 1
             tok_s -= 1
 
-            # walk backward to find end token
+            # walk backward to find end token; clamp to window boundary if the
+            # answer extends beyond this chunk (truncated span is still useful)
+            a_end_clamped = min(a_end, chunk_char_end - 1)
             tok_e = ctx_end
-            while tok_e >= ctx_start and offsets[tok_e][1] >= a_end + 1:
+            while tok_e >= ctx_start and offsets[tok_e][1] >= a_end_clamped + 1:
                 tok_e -= 1
             tok_e += 1
+            tok_e = min(tok_e, ctx_end)
 
             if tok_s < 0 or tok_e >= max_length or tok_s > tok_e:
                 skipped += 1
@@ -185,7 +192,12 @@ def make_eval_examples(df, tokenizer, max_length=384, stride=128,
             a_start = int(row["answer_start"])
             a_end   = a_start + len(str(row["answer_text"])) - 1
 
-            if offsets[ctx_start][0] > a_start or offsets[ctx_end][1] < a_end:
+            chunk_char_start = offsets[ctx_start][0]
+            chunk_char_end   = offsets[ctx_end][1]
+
+            # Skip windows that don't contain answer_start; truncate long spans
+            # at the window boundary rather than skipping the example entirely.
+            if chunk_char_start > a_start or chunk_char_end <= a_start:
                 continue
 
             tok_s = ctx_start
@@ -193,10 +205,12 @@ def make_eval_examples(df, tokenizer, max_length=384, stride=128,
                 tok_s += 1
             tok_s -= 1
 
+            a_end_clamped = min(a_end, chunk_char_end - 1)
             tok_e = ctx_end
-            while tok_e >= ctx_start and offsets[tok_e][1] >= a_end + 1:
+            while tok_e >= ctx_start and offsets[tok_e][1] >= a_end_clamped + 1:
                 tok_e -= 1
             tok_e += 1
+            tok_e = min(tok_e, ctx_end)
 
             if tok_s < 0 or tok_e >= max_length or tok_s > tok_e:
                 skipped += 1

@@ -1,6 +1,7 @@
 "use client";
 
-import { RISK_COLORS, RISK_ICONS, type RiskLabel } from "@/lib/types";
+import { motion } from "framer-motion";
+import type { RiskLabel } from "@/lib/types";
 
 interface Props {
   label: RiskLabel;
@@ -10,62 +11,119 @@ interface Props {
   missingCritical: string[];
 }
 
+const STAMP = {
+  HIGH:   { text: "#B83232", border: "rgba(184,50,50,0.5)",  bg: "rgba(184,50,50,0.07)",  glow: "0 0 60px -10px rgba(184,50,50,0.35)"  },
+  MEDIUM: { text: "#C47820", border: "rgba(196,120,32,0.5)", bg: "rgba(196,120,32,0.07)", glow: "0 0 60px -10px rgba(196,120,32,0.28)" },
+  LOW:    { text: "#2D7A4F", border: "rgba(45,122,79,0.5)",  bg: "rgba(45,122,79,0.07)",  glow: "0 0 60px -10px rgba(45,122,79,0.28)"  },
+};
+
 export default function RiskBanner({ label, probLow, probMedium, probHigh, missingCritical }: Props) {
-  const c = RISK_COLORS[label];
+  const s = STAMP[label];
 
   return (
-    <div className={`w-full rounded-2xl border p-6 ${c.bg} ${c.border} ${c.glow} transition-all`}>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <motion.div
+      initial={{ opacity: 0, y: 32, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ type: "spring", stiffness: 80, damping: 18 }}
+      className="w-full rounded-2xl border border-[#1e2220] bg-card p-8"
+      style={{ boxShadow: s.glow }}
+    >
+      <div className="flex flex-col sm:flex-row sm:items-center gap-8">
 
-        {/* Left: risk tier */}
-        <div className="flex items-center gap-4">
-          <span className={`text-5xl ${label === "HIGH" ? "pulse-high" : ""}`}>
-            {RISK_ICONS[label]}
+        {/* ── Verdict stamp ──────────────────────────────────────────── */}
+        <div className="flex flex-col items-start gap-2 min-w-[180px]">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">
+            Verdict
           </span>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-0.5">Risk Tier</p>
-            <h2 className={`text-4xl font-black tracking-tight ${c.text}`}>{label}</h2>
-          </div>
+          {/* The stamp — scales in percussively after the banner enters */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.35 }}
+            className="stamp"
+          >
+            <div
+              className="px-5 py-2 font-display text-5xl leading-none rounded-sm"
+              style={{
+                color: s.text,
+                border: `2px dashed ${s.border}`,
+                background: s.bg,
+              }}
+            >
+              {label}
+            </div>
+            <div
+              className="mt-1.5 text-[10px] font-semibold tracking-[0.25em] uppercase"
+              style={{ color: s.text, opacity: 0.65 }}
+            >
+              RISK
+            </div>
+          </motion.div>
         </div>
 
-        {/* Right: probability bars */}
-        <div className="flex flex-col gap-2 min-w-[220px]">
-          <ProbBar label="LOW"    value={probLow}    color="bg-green-500" />
-          <ProbBar label="MEDIUM" value={probMedium} color="bg-amber-500" />
-          <ProbBar label="HIGH"   value={probHigh}   color="bg-red-500"   />
+        {/* ── Probability bars ──────────────────────────────────────── */}
+        <div className="flex flex-col gap-3 flex-1">
+          <ProbBar label="LOW"    value={probLow}    color="#2D7A4F" delay={0.4} />
+          <ProbBar label="MEDIUM" value={probMedium} color="#C47820" delay={0.5} />
+          <ProbBar label="HIGH"   value={probHigh}   color="#B83232" delay={0.6} />
         </div>
       </div>
 
-      {/* Missing critical clauses warning */}
+      {/* ── Missing critical clauses ────────────────────────────────── */}
       {missingCritical.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-red-500/20">
-          <p className="text-xs font-semibold uppercase tracking-widest text-red-400 mb-2">
-            ⚠ {missingCritical.length} Critical Clause{missingCritical.length > 1 ? "s" : ""} Missing
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          transition={{ delay: 0.7, duration: 0.4, ease: "easeOut" }}
+          className="mt-6 pt-6 border-t border-[#1e2220] overflow-hidden"
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-stamp mb-3">
+            {missingCritical.length} critical clause{missingCritical.length > 1 ? "s" : ""} not found
           </p>
           <div className="flex flex-wrap gap-2">
-            {missingCritical.map((clause) => (
-              <span key={clause} className="px-2 py-0.5 rounded-md text-xs bg-red-500/15 text-red-300 border border-red-500/25">
+            {missingCritical.map((clause, i) => (
+              <motion.span
+                key={clause}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.8 + i * 0.06, type: "spring", stiffness: 200 }}
+                className="px-2 py-0.5 rounded text-xs bg-stamp/10 text-stamp border border-stamp/25"
+              >
                 {clause}
-              </span>
+              </motion.span>
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
-function ProbBar({ label, value, color }: { label: string; value: number; color: string }) {
+function ProbBar({
+  label, value, color, delay,
+}: {
+  label: string; value: number; color: string; delay: number;
+}) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-zinc-500 w-14 shrink-0">{label}</span>
-      <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-        <div
-          className={`h-full ${color} rounded-full transition-all duration-700`}
-          style={{ width: `${value}%` }}
+    <div className="flex items-center gap-3">
+      <span className="text-xs text-muted w-14 shrink-0 tracking-wide">{label}</span>
+      <div className="flex-1 h-1 bg-lift rounded-full overflow-hidden">
+        <motion.div
+          className="h-full rounded-full"
+          style={{ background: color }}
+          initial={{ width: 0 }}
+          animate={{ width: `${value}%` }}
+          transition={{ duration: 1.1, ease: [0.25, 0.46, 0.45, 0.94], delay }}
         />
       </div>
-      <span className="text-xs text-zinc-400 w-10 text-right">{value.toFixed(1)}%</span>
+      <motion.span
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: delay + 0.5 }}
+        className="text-xs text-muted w-10 text-right tabular-nums"
+      >
+        {value.toFixed(1)}%
+      </motion.span>
     </div>
   );
 }

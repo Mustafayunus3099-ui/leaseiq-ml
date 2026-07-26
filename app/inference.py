@@ -1,16 +1,10 @@
 """
-inference.py
-Shared inference logic used by the Streamlit app and the FastAPI backend.
+inference.py — shared pipeline used by api.py and streamlit_app.py.
 
-Pipeline:
-  contract text
-      → LegalBERT QA (extracts 41 clause types)
-      → XGBoost classifier (LOW / MEDIUM / HIGH risk)
-      → SHAP explanation (which clauses drive the score)
+Flow: contract text → LegalBERT QA (41 clauses) → XGBoost risk tier → SHAP explanation
 """
 
 import os
-import pickle
 from functools import lru_cache
 from pathlib import Path
 
@@ -23,13 +17,12 @@ MODEL_DIR_LB = ROOT / "models" / "legalbert-cuad"
 MODEL_DIR_DB = ROOT / "models" / "distilbert-cuad"
 XGB_PATH     = ROOT / "models" / "xgb_risk_model.pkl"
 
-# In production (HuggingFace Spaces) these env vars point to Hub repo IDs.
-# Locally they fall back to the fine-tuned checkpoint directories.
+# In HuggingFace Spaces these env vars point to Hub repo IDs; locally they
+# fall back to the fine-tuned checkpoint directories.
 _HF_MODEL_LB = os.getenv("HF_MODEL_LB", str(MODEL_DIR_LB) if MODEL_DIR_LB.exists() else "nlpaueb/legal-bert-base-uncased")
 _HF_MODEL_DB = os.getenv("HF_MODEL_DB", str(MODEL_DIR_DB) if MODEL_DIR_DB.exists() else "distilbert-base-uncased")
 
-# All 41 CUAD clause categories in a fixed order so the feature vector
-# lines up correctly with what XGBoost was trained on.
+# Fixed order so the XGBoost feature vector stays aligned with training
 CLAUSE_CATEGORIES = [
     "Affiliate License-Licensee", "Affiliate License-Licensor", "Agreement Date",
     "Anti-Assignment", "Audit Rights", "Cap On Liability", "Change Of Control",
@@ -61,7 +54,7 @@ RISK_COLORS = {"LOW": "#55A868", "MEDIUM": "#F5A623", "HIGH": "#C44E52"}
 
 @lru_cache(maxsize=1)
 def load_qa_model():
-    """Load LegalBERT once and cache it — model loading takes ~30s."""
+    """Load LegalBERT once and cache it — takes ~30s on first call."""
     from transformers import AutoModelForQuestionAnswering, AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained(_HF_MODEL_LB)
     model     = AutoModelForQuestionAnswering.from_pretrained(_HF_MODEL_LB)
@@ -69,13 +62,27 @@ def load_qa_model():
     return model, tokenizer
 
 
-# backwards-compat alias used by streamlit_app.py
+# Alias kept for backward compatibility with streamlit_app.py
 def load_qa_pipeline():
     return load_qa_model()
 
 
 @lru_cache(maxsize=1)
 def load_xgb():
+    # Prefer the native XGBoost JSON format (no arbitrary code execution on load).
+    # Run scripts/save_xgb_as_json.py once to generate xgb_risk_model.json,
+    # after which the pickle file can be deleted.
+    json_path = XGB_PATH.with_suffix(".json")
+    if json_path.exists():
+        import xgboost as xgb
+        model = xgb.XGBClassifier()
+        model.load_model(str(json_path))
+        return model
+
+    # Pickle fallback — SAFE ONLY because this file is a first-party artifact
+    # we trained ourselves (models/xgb_risk_model.pkl). Never load pickle from
+    # user-supplied or network sources.
+    import pickle  # noqa: S403
     with open(XGB_PATH, "rb") as f:
         return pickle.load(f)
 
@@ -83,12 +90,9 @@ def load_xgb():
 def _run_qa(question: str, context: str, model, tokenizer,
             max_length: int = 384, stride: int = 128) -> dict:
     """
-    Run a single QA inference pass with sliding-window chunking.
-    Returns the best (answer, score) across all windows.
-
-    We compare each candidate span against the null answer (CLS token score)
-    and only accept spans that beat it — this is how the original SQuAD v2
-    models handle unanswerable questions.
+    Single QA inference pass with sliding-window chunking.
+    Returns the best (answer, confidence) across all windows.
+    Spans whose score is below the null-answer score are rejected (SQuAD v2 convention).
     """
     import torch
     import torch.nn.functional as F
@@ -146,10 +150,7 @@ def _run_qa(question: str, context: str, model, tokenizer,
 
 
 def extract_clauses(contract_text: str, confidence_threshold: float = 0.05) -> dict:
-    """
-    Run LegalBERT QA for all 41 clause categories on a single contract.
-    Returns {category: {"answer": str, "score": float, "present": bool}}
-    """
+    """Run LegalBERT QA for all 41 clause categories on one contract."""
     model, tokenizer = load_qa_model()
     results = {}
     for category in CLAUSE_CATEGORIES:
@@ -170,14 +171,15 @@ def build_feature_vector(clause_results: dict) -> np.ndarray:
 
 
 def score_risk(feature_vector: np.ndarray) -> dict:
-    """Run the XGBoost classifier and return tier + per-class probabilities."""
+    """XGBoost risk classification — returns tier label and per-class probabilities."""
     xgb   = load_xgb()
     pred  = int(xgb.predict(feature_vector)[0])
     proba = xgb.predict_proba(feature_vector)[0].tolist()
+    label = RISK_LABELS[pred]
     return {
         "risk_level": pred,
-        "risk_label": RISK_LABELS[pred],
-        "risk_color": RISK_COLORS[RISK_LABELS[pred]],
+        "risk_label": label,
+        "risk_color": RISK_COLORS[label],
         "prob_low":    round(proba[0] * 100, 1),
         "prob_medium": round(proba[1] * 100, 1),
         "prob_high":   round(proba[2] * 100, 1),
@@ -185,11 +187,11 @@ def score_risk(feature_vector: np.ndarray) -> dict:
 
 
 def shap_explanation(feature_vector: np.ndarray) -> dict:
-    """Return SHAP values for the HIGH-risk class, keyed by clause category."""
+    """SHAP values for the HIGH-risk class, keyed by clause category."""
     xgb       = load_xgb()
     explainer = shap.TreeExplainer(xgb)
     sv        = np.array(explainer.shap_values(feature_vector))
-    # SHAP output format varies across versions so handle both
+    # Handle both SHAP output shapes across library versions
     if sv.ndim == 3 and sv.shape[0] == 3:
         shap_high = sv[2][0]
     elif sv.ndim == 3 and sv.shape[-1] == 3:
@@ -200,10 +202,7 @@ def shap_explanation(feature_vector: np.ndarray) -> dict:
 
 
 def analyze_contract(contract_text: str, confidence_threshold: float = 0.05) -> dict:
-    """
-    Full end-to-end pipeline: text → clauses → risk → SHAP.
-    Returns a single dict the UI layer can render directly.
-    """
+    """Full pipeline: text → clauses → risk tier → SHAP explanation."""
     clause_results = extract_clauses(contract_text, confidence_threshold)
     feature_vec    = build_feature_vector(clause_results)
     risk           = score_risk(feature_vec)
@@ -214,8 +213,8 @@ def analyze_contract(contract_text: str, confidence_threshold: float = 0.05) -> 
 
     return {
         "risk":           risk,
-        "clauses":        clause_results,   # also exposed as "clause_results" for compat
-        "clause_results": clause_results,
+        "clauses":        clause_results,
+        "clause_results": clause_results,   # backward-compat alias
         "shap_values":    shap_vals,
         "missing_high":   missing_high,
         "present_high":   present_high,

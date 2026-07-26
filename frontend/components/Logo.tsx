@@ -78,8 +78,8 @@ export default function Logo({ size = "md", showWordmark = true }: Props) {
       {/* ── Wordmark ── */}
       {showWordmark && (
         <span className={`font-bold tracking-tight leading-none ${s.text}`}>
-          <span className="text-zinc-100">Lease</span>
-          <span className="text-indigo-400">IQ</span>
+          <span className="text-paper">Lease</span>
+          <span className="text-gold">IQ</span>
         </span>
       )}
     </span>

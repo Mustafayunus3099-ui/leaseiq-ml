@@ -2,27 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND = process.env.BACKEND_URL ?? "http://localhost:8000";
 
-// Simple in-memory rate limiter: max 10 requests per IP per minute
-const rateLimitMap = new Map<string, { count: number; reset: number }>();
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-
-  if (!entry || now > entry.reset) {
-    rateLimitMap.set(ip, { count: 1, reset: now + 60_000 });
-    return true;
-  }
-  if (entry.count >= 10) return false;
-  entry.count++;
-  return true;
-}
-
 export async function POST(req: NextRequest) {
-  // Rate limit by IP
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() ?? "unknown";
-  if (!checkRateLimit(ip)) {
-    return NextResponse.json({ detail: "Too many requests. Please wait a minute and try again." }, { status: 429 });
+  // Body size guard before parsing — reject oversized requests early
+  const contentLength = Number(req.headers.get("content-length") ?? 0);
+  if (contentLength > 1_000_000) {
+    return NextResponse.json({ detail: "Request body too large." }, { status: 413 });
   }
 
   let body: unknown;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { AnalysisResult } from "@/lib/types";
 import { HIGH_RISK_CLAUSES } from "@/lib/types";
 
@@ -21,13 +22,9 @@ const ALL_CLAUSES = [
   "Volume Restriction","Warranty Duration",
 ];
 
-interface Props {
-  result: AnalysisResult;
-}
-
 type Filter = "all" | "present" | "missing" | "critical";
 
-export default function ClauseTable({ result }: Props) {
+export default function ClauseTable({ result }: { result: AnalysisResult }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
 
@@ -36,113 +33,132 @@ export default function ClauseTable({ result }: Props) {
   const rows = ALL_CLAUSES
     .filter((c) => c.toLowerCase().includes(search.toLowerCase()))
     .filter((c) => {
-      const isPresent = clauses[c]?.present ?? false;
-      const isCritical = HIGH_RISK_CLAUSES.includes(c);
-      if (filter === "present")  return isPresent;
-      if (filter === "missing")  return !isPresent;
-      if (filter === "critical") return isCritical;
+      const present  = clauses[c]?.present ?? false;
+      const critical = HIGH_RISK_CLAUSES.includes(c);
+      if (filter === "present")  return present;
+      if (filter === "missing")  return !present;
+      if (filter === "critical") return critical;
       return true;
     });
 
   const presentCount = ALL_CLAUSES.filter((c) => clauses[c]?.present).length;
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">
-          Clause Analysis · {presentCount}/{ALL_CLAUSES.length} Found
-        </h3>
-        <div className="flex items-center gap-2">
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 80, damping: 18 }}
+      className="rounded-2xl border border-[#1e2220] bg-card overflow-hidden"
+    >
+      <div className="px-6 py-4 border-b border-[#1e2220] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h3 className="font-display text-lg text-paper">Clause Analysis</h3>
+          <p className="text-xs text-muted mt-0.5">{presentCount} of {ALL_CLAUSES.length} clauses found</p>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
           <input
             type="text"
-            placeholder="Search clauses…"
+            placeholder="Search…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="text-xs bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-zinc-300 placeholder-zinc-600 outline-none focus:border-indigo-500 w-40"
+            className="text-xs bg-lift border border-[#1e2220] rounded-lg px-3 py-1.5 text-paper placeholder-muted outline-none focus:border-gold/50 w-32 transition-colors"
           />
-          {(["all","present","missing","critical"] as Filter[]).map((f) => (
-            <button
+          {(["all", "present", "missing", "critical"] as Filter[]).map((f) => (
+            <motion.button
               key={f}
+              whileTap={{ scale: 0.93 }}
               onClick={() => setFilter(f)}
               className={`text-xs px-2.5 py-1.5 rounded-lg capitalize transition-colors ${
                 filter === f
-                  ? "bg-indigo-600 text-white"
-                  : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
+                  ? "bg-gold text-ink font-semibold"
+                  : "bg-lift text-muted hover:text-paper border border-[#1e2220]"
               }`}
             >
               {f}
-            </button>
+            </motion.button>
           ))}
         </div>
       </div>
 
-      <div className="rounded-xl border border-zinc-800 overflow-hidden">
-        <div className="overflow-y-auto max-h-96">
-          <table className="w-full text-sm">
-            <thead className="bg-zinc-900 sticky top-0 z-10">
+      <div className="overflow-y-auto max-h-96">
+        <table className="w-full text-sm">
+          <thead className="bg-lift sticky top-0 z-10 border-b border-[#1e2220]">
+            <tr>
+              <th className="text-left text-[10px] text-muted font-semibold px-4 py-2.5 uppercase tracking-wider">Clause</th>
+              <th className="text-center text-[10px] text-muted font-semibold px-3 py-2.5 uppercase tracking-wider w-28">Status</th>
+              <th className="text-left text-[10px] text-muted font-semibold px-4 py-2.5 uppercase tracking-wider">Excerpt</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
               <tr>
-                <th className="text-left text-xs text-zinc-500 font-semibold px-4 py-2.5 uppercase tracking-wider">Clause</th>
-                <th className="text-center text-xs text-zinc-500 font-semibold px-3 py-2.5 uppercase tracking-wider w-24">Status</th>
-                <th className="text-left text-xs text-zinc-500 font-semibold px-4 py-2.5 uppercase tracking-wider">Excerpt</th>
+                <td colSpan={3} className="text-center text-muted py-8 text-sm">No clauses match</td>
               </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 && (
-                <tr><td colSpan={3} className="text-center text-zinc-600 py-8 text-sm">No clauses match</td></tr>
-              )}
+            )}
+            <AnimatePresence initial={false}>
               {rows.map((clause, i) => {
                 const info     = clauses[clause];
                 const present  = info?.present ?? false;
-                const isCrit   = HIGH_RISK_CLAUSES.includes(clause);
+                const critical = HIGH_RISK_CLAUSES.includes(clause);
                 const score    = info?.score ?? 0;
 
                 return (
-                  <tr
+                  <motion.tr
                     key={clause}
-                    className={`border-t border-zinc-800/60 transition-colors hover:bg-zinc-900/50 ${
-                      i % 2 === 0 ? "bg-zinc-950" : "bg-zinc-950/70"
-                    }`}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ delay: Math.min(i * 0.02, 0.35), duration: 0.22 }}
+                    className="border-t border-[#1e2220]/60 hover:bg-lift/40 transition-colors"
                   >
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
-                        {isCrit && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/25 shrink-0">
+                        {critical && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gold/10 text-gold border border-gold/25 shrink-0 font-medium">
                             KEY
                           </span>
                         )}
-                        <span className="text-zinc-300 text-xs">{clause}</span>
+                        <span className="text-paper text-xs">{clause}</span>
                       </div>
                     </td>
+
                     <td className="px-3 py-2.5 text-center">
                       {present ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-green-400">
+                        <span className="inline-flex items-center gap-1.5 text-xs text-seal">
                           <span>✓</span>
-                          <div className="w-12 h-1 bg-zinc-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-green-500 rounded-full" style={{ width: `${score * 100}%` }} />
+                          <div className="w-10 h-1 bg-lift rounded-full overflow-hidden">
+                            <motion.div
+                              className="h-full bg-seal rounded-full"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${score * 100}%` }}
+                              transition={{ duration: 0.6, ease: "easeOut", delay: i * 0.015 }}
+                            />
                           </div>
                         </span>
                       ) : (
-                        <span className={`text-xs ${isCrit ? "text-red-400 font-semibold" : "text-zinc-600"}`}>
-                          {isCrit ? "✗ MISSING" : "—"}
+                        <span className={`text-xs ${critical ? "text-stamp font-semibold" : "text-muted"}`}>
+                          {critical ? "✗ MISSING" : "—"}
                         </span>
                       )}
                     </td>
+
                     <td className="px-4 py-2.5 max-w-xs">
                       {present && info?.excerpt ? (
-                        <span className="text-xs text-zinc-500 italic line-clamp-2" title={info.excerpt}>
-                          "{info.excerpt.slice(0, 100)}{info.excerpt.length > 100 ? "…" : ""}"
+                        <span className="text-xs text-muted italic line-clamp-2" title={info.excerpt}>
+                          &ldquo;{info.excerpt.slice(0, 100)}{info.excerpt.length > 100 ? "…" : ""}&rdquo;
                         </span>
                       ) : (
-                        <span className="text-xs text-zinc-700">—</span>
+                        <span className="text-xs text-muted/40">—</span>
                       )}
                     </td>
-                  </tr>
+                  </motion.tr>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
+            </AnimatePresence>
+          </tbody>
+        </table>
       </div>
-    </div>
+    </motion.div>
   );
 }
