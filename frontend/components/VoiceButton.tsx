@@ -68,15 +68,10 @@ export default function VoiceButton({ result }: Props) {
       const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
 
       if (assistantId) {
-        // Use dashboard assistant (inherits Soniox STT + all account settings),
-        // but override the system prompt so it knows this specific lease's results.
-        await vapi.start(assistantId, {
-          model: {
-            messages: [{ role: "system", content: buildSystemPrompt(result) }],
-          },
-        } as Parameters<typeof vapi.start>[1]);
+        // Use dashboard assistant directly — inherits Soniox STT + all account settings.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (vapi as any).start(assistantId);
       } else {
-        // Fallback: inline config
         await vapi.start({
           transcriber: { provider: "talkscriber", model: "whisper", language: "en" },
           model: {
