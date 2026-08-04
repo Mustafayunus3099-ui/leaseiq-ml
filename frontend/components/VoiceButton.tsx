@@ -57,12 +57,12 @@ export default function VoiceButton({ result }: Props) {
       await vapi.start({
         model: {
           provider: "anthropic",
-          model: "claude-haiku-4-5-20251001",
+          model: "claude-3-5-haiku-20241022",
           messages: [{ role: "system", content: buildSystemPrompt(result) }],
         },
         voice: {
-          provider: "11labs",
-          voiceId: "EXAVITQu4vr4xnSDxMaL", // Rachel
+          provider: "vapi",
+          voiceId: "Elliot",
         },
         name: "LeaseIQ Voice Agent",
         firstMessage: "Hi! I've analysed your lease. What would you like to know?",
