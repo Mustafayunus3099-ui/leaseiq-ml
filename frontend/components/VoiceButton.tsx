@@ -56,8 +56,8 @@ export default function VoiceButton({ result }: Props) {
 
       await vapi.start({
         model: {
-          provider: "anthropic",
-          model: "claude-3-5-haiku-20241022",
+          provider: "openai",
+          model: "gpt-4o-mini",
           messages: [{ role: "system", content: buildSystemPrompt(result) }],
         },
         voice: {
