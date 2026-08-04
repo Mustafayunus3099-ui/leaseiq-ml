@@ -68,9 +68,12 @@ export default function VoiceButton({ result }: Props) {
       const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
 
       if (assistantId) {
-        // Use dashboard assistant directly — inherits Soniox STT + all account settings.
+        // Use dashboard assistant — inherits Soniox STT + Claude Sonnet + Elliot voice.
+        // Override first message so the agent greets with the actual risk verdict.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (vapi as any).start(assistantId);
+        await (vapi as any).start(assistantId, {
+          firstMessage: `Hi! I've analysed your lease — the verdict is ${result.risk_label} risk with a ${result.prob_high.toFixed(0)}% HIGH-risk probability. What would you like to know?`,
+        });
       } else {
         await vapi.start({
           transcriber: { provider: "talkscriber", model: "whisper", language: "en" },
