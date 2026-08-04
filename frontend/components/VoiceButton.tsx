@@ -45,7 +45,8 @@ export default function VoiceButton({ result }: Props) {
 
       vapi.on("call-start", () => setState("active"));
       vapi.on("call-end",   () => { setState("idle"); vapiRef.current = null; });
-      vapi.on("error",      () => { setState("error"); vapiRef.current = null; });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vapi.on("error", (err: any) => { console.error("[Vapi error event]", err); setState("error"); vapiRef.current = null; });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vapi.on("message", (msg: any) => {
         if (msg?.type === "transcript" && msg?.transcript) {
@@ -67,7 +68,8 @@ export default function VoiceButton({ result }: Props) {
         name: "LeaseIQ Voice Agent",
         firstMessage: "Hi! I've analysed your lease. What would you like to know?",
       });
-    } catch {
+    } catch (err) {
+      console.error("[Vapi start failed]", err);
       setState("error");
       vapiRef.current = null;
     }
