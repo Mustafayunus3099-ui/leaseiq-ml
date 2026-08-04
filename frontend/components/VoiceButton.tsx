@@ -9,7 +9,8 @@ interface Props {
   result: AnalysisResult;
 }
 
-type CallState = "idle" | "connecting" | "active" | "error";
+// idle → connecting → agent-speaking ↔ listening → idle
+type CallState = "idle" | "connecting" | "agent-speaking" | "listening" | "error";
 
 function buildSystemPrompt(result: AnalysisResult): string {
   const missing = result.missing_high_risk.join(", ") || "none";
@@ -20,15 +21,15 @@ function buildSystemPrompt(result: AnalysisResult): string {
     `HIGH risk probability: ${result.prob_high.toFixed(1)}%.`,
     `Missing critical clauses: ${missing}.`,
     `Present critical clauses: ${present}.`,
-    "Answer questions clearly and concisely in plain English.",
+    "Keep answers concise — 2-3 sentences max unless the user asks for detail.",
     "Always remind the user to consult a licensed attorney before signing.",
   ].join(" ");
 }
 
 export default function VoiceButton({ result }: Props) {
   const [state, setState]           = useState<CallState>("idle");
-  const [transcript, setTranscript] = useState<string[]>([]);
-  const vapiRef = useRef<VapiType | null>(null);
+  const [transcript, setTranscript] = useState<{ speaker: string; text: string }[]>([]);
+  const vapiRef  = useRef<VapiType | null>(null);
   const publicKey = process.env.NEXT_PUBLIC_VAPI_KEY ?? "";
 
   useEffect(() => {
@@ -38,29 +39,33 @@ export default function VoiceButton({ result }: Props) {
   async function startCall() {
     if (!publicKey) { setState("error"); return; }
     setState("connecting");
+    setTranscript([]);
     try {
       const Vapi = (await import("@vapi-ai/web")).default;
-      const vapi = new Vapi(publicKey);
+      const vapi  = new Vapi(publicKey);
       vapiRef.current = vapi;
 
-      vapi.on("call-start", () => setState("active"));
-      vapi.on("call-end",   () => { setState("idle"); vapiRef.current = null; });
+      vapi.on("call-start",  () => setState("agent-speaking"));
+      vapi.on("speech-start", () => setState("agent-speaking"));
+      vapi.on("speech-end",   () => setState("listening"));
+      vapi.on("call-end",     () => { setState("idle"); vapiRef.current = null; });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      vapi.on("error", (err: any) => { console.error("[Vapi error event]", err); setState("error"); vapiRef.current = null; });
+      vapi.on("error", (err: any) => {
+        console.error("[Vapi error]", err);
+        setState("error");
+        vapiRef.current = null;
+      });
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       vapi.on("message", (msg: any) => {
-        if (msg?.type === "transcript" && msg?.transcript) {
+        // Only append final transcripts to avoid partial-transcript spam
+        if (msg?.type === "transcript" && msg?.transcriptType === "final" && msg?.transcript) {
           const speaker = msg.role === "assistant" ? "LeaseIQ" : "You";
-          setTranscript(prev => [...prev.slice(-8), `${speaker}: ${msg.transcript}`]);
+          setTranscript(prev => [...prev.slice(-10), { speaker, text: msg.transcript }]);
         }
       });
 
       await vapi.start({
-        transcriber: {
-          provider: "deepgram",
-          model: "nova-2",
-          language: "en-US",
-        },
         model: {
           provider: "anthropic",
           model: "claude-3-5-haiku-20241022",
@@ -85,6 +90,7 @@ export default function VoiceButton({ result }: Props) {
     setState("idle");
   }
 
+  const isLive    = state === "agent-speaking" || state === "listening";
   const RISK_COLOR = { HIGH: "#B83232", MEDIUM: "#C47820", LOW: "#2D7A4F" }[result.risk_label];
 
   return (
@@ -103,7 +109,17 @@ export default function VoiceButton({ result }: Props) {
 
         {/* Mic / stop button */}
         <div className="relative">
-          {state === "active" && (
+          {/* Listening pulse — shows when it's the user's turn */}
+          {state === "listening" && (
+            <motion.div
+              className="absolute inset-0 rounded-full"
+              style={{ border: "2px solid #22c55e" }}
+              animate={{ scale: [1, 1.6, 1], opacity: [0.7, 0, 0.7] }}
+              transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
+            />
+          )}
+          {/* Agent-speaking pulse */}
+          {state === "agent-speaking" && (
             <motion.div
               className="absolute inset-0 rounded-full"
               style={{ border: `2px solid ${RISK_COLOR}` }}
@@ -111,13 +127,18 @@ export default function VoiceButton({ result }: Props) {
               transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
             />
           )}
+
           <button
-            onClick={state === "active" ? stopCall : startCall}
+            onClick={isLive ? stopCall : startCall}
             disabled={state === "connecting"}
             className="relative w-20 h-20 rounded-full flex items-center justify-center border-2 transition-all focus:outline-none disabled:opacity-50"
             style={{
-              background:   state === "active" ? `${RISK_COLOR}18` : "rgba(192,154,71,0.06)",
-              borderColor:  state === "active" ? RISK_COLOR        : "rgba(192,154,71,0.4)",
+              background:  state === "listening"      ? "rgba(34,197,94,0.08)"
+                         : state === "agent-speaking" ? `${RISK_COLOR}18`
+                         : "rgba(192,154,71,0.06)",
+              borderColor: state === "listening"      ? "#22c55e"
+                         : state === "agent-speaking" ? RISK_COLOR
+                         : "rgba(192,154,71,0.4)",
             }}
           >
             {state === "connecting" ? (
@@ -126,9 +147,10 @@ export default function VoiceButton({ result }: Props) {
                 animate={{ rotate: 360 }}
                 transition={{ repeat: Infinity, duration: 0.9, ease: "linear" }}
               />
-            ) : state === "active" ? (
+            ) : isLive ? (
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <rect x="6" y="6" width="12" height="12" rx="2" fill={RISK_COLOR} />
+                <rect x="6" y="6" width="12" height="12" rx="2"
+                  fill={state === "listening" ? "#22c55e" : RISK_COLOR} />
               </svg>
             ) : (
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
@@ -147,16 +169,13 @@ export default function VoiceButton({ result }: Props) {
           {state === "idle" && !publicKey && (
             <motion.p key="no-key" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="text-xs text-stamp text-center max-w-xs">
-              Voice Q&amp;A requires a{" "}
-              <code className="bg-lift px-1 py-0.5 rounded text-[10px]">NEXT_PUBLIC_VAPI_KEY</code>{" "}
-              environment variable.
+              Set <code className="bg-lift px-1 py-0.5 rounded text-[10px]">NEXT_PUBLIC_VAPI_KEY</code> to enable voice Q&amp;A.
             </motion.p>
           )}
           {state === "idle" && publicKey && (
             <motion.p key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="text-xs text-muted text-center">
-              Tap the mic and ask — <em>&ldquo;What&apos;s my biggest risk?&rdquo;</em> or{" "}
-              <em>&ldquo;Explain the anti-assignment clause.&rdquo;</em>
+              Tap the mic — ask <em>&ldquo;What&apos;s my biggest risk?&rdquo;</em>
             </motion.p>
           )}
           {state === "connecting" && (
@@ -165,18 +184,22 @@ export default function VoiceButton({ result }: Props) {
               Connecting…
             </motion.p>
           )}
-          {state === "active" && (
-            <motion.p key="active" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          {state === "agent-speaking" && (
+            <motion.p key="speaking" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="text-xs text-center" style={{ color: RISK_COLOR }}>
-              Live — tap the square to end the call
+              LeaseIQ is speaking…
+            </motion.p>
+          )}
+          {state === "listening" && (
+            <motion.p key="listening" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="text-xs text-green-500 text-center font-semibold">
+              🎙 Your turn — speak now
             </motion.p>
           )}
           {state === "error" && (
             <motion.p key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="text-xs text-stamp text-center">
-              {publicKey
-                ? "Could not start the call. Check your Vapi key and try again."
-                : "Set NEXT_PUBLIC_VAPI_KEY to enable voice Q&A."}
+              {publicKey ? "Could not start the call. Check your Vapi key." : "Set NEXT_PUBLIC_VAPI_KEY to enable voice Q&A."}
             </motion.p>
           )}
         </AnimatePresence>
@@ -189,11 +212,18 @@ export default function VoiceButton({ result }: Props) {
             className="w-full max-w-md rounded-xl border border-[#1e2220] bg-lift/50 p-4 space-y-2 overflow-hidden"
           >
             {transcript.map((line, i) => (
-              <p key={i} className={`text-[11px] leading-relaxed ${line.startsWith("LeaseIQ:") ? "text-gold" : "text-paper"}`}>
-                {line}
+              <p key={i}
+                className={`text-[11px] leading-relaxed ${
+                  line.speaker === "LeaseIQ" ? "text-gold" : "text-stone-600"
+                }`}>
+                <span className="font-semibold">{line.speaker}:</span> {line.text}
               </p>
             ))}
           </motion.div>
+        )}
+
+        {isLive && (
+          <p className="text-[10px] text-muted text-center">Tap the square to end the call</p>
         )}
       </div>
     </motion.div>
