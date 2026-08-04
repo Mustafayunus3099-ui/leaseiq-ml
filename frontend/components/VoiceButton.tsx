@@ -56,6 +56,11 @@ export default function VoiceButton({ result }: Props) {
       });
 
       await vapi.start({
+        transcriber: {
+          provider: "deepgram",
+          model: "nova-2",
+          language: "en-US",
+        },
         model: {
           provider: "anthropic",
           model: "claude-3-5-haiku-20241022",
