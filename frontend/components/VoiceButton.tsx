@@ -65,24 +65,30 @@ export default function VoiceButton({ result }: Props) {
         }
       });
 
-      await vapi.start({
-        transcriber: {
-          provider: "talkscriber",
-          model: "whisper",
-          language: "en",
-        },
-        model: {
-          provider: "anthropic",
-          model: "claude-haiku-4-5-20251001",
-          messages: [{ role: "system", content: buildSystemPrompt(result) }],
-        },
-        voice: {
-          provider: "vapi",
-          voiceId: "Elliot",
-        },
-        name: "LeaseIQ Voice Agent",
-        firstMessage: "Hi! I've analysed your lease. What would you like to know?",
-      });
+      const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
+
+      if (assistantId) {
+        // Use dashboard assistant (inherits Soniox STT + all account settings),
+        // but override the system prompt so it knows this specific lease's results.
+        await vapi.start(assistantId, {
+          model: {
+            messages: [{ role: "system", content: buildSystemPrompt(result) }],
+          },
+        } as Parameters<typeof vapi.start>[1]);
+      } else {
+        // Fallback: inline config
+        await vapi.start({
+          transcriber: { provider: "talkscriber", model: "whisper", language: "en" },
+          model: {
+            provider: "anthropic",
+            model: "claude-haiku-4-5-20251001",
+            messages: [{ role: "system", content: buildSystemPrompt(result) }],
+          },
+          voice: { provider: "vapi", voiceId: "Elliot" },
+          name: "LeaseIQ Voice Agent",
+          firstMessage: "Hi! I've analysed your lease. What would you like to know?",
+        });
+      }
     } catch (err) {
       console.error("[Vapi start failed]", err);
       setState("error");
