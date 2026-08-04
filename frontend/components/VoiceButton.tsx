@@ -66,6 +66,11 @@ export default function VoiceButton({ result }: Props) {
       });
 
       await vapi.start({
+        transcriber: {
+          provider: "talkscriber",
+          model: "whisper",
+          language: "en",
+        },
         model: {
           provider: "anthropic",
           model: "claude-haiku-4-5-20251001",
